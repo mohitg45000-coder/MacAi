@@ -1,5 +1,5 @@
 from tools.apps import open_app, close_app
-
+from voice.speech_to_text import listen
 from tools.files import (
     list_files,
     create_folder,
@@ -30,17 +30,26 @@ def main():
     while True:
 
         try:
-
             user_input = input("MacAI > ").strip()
 
             if not user_input:
                 continue
 
+            # ============================
+            # VOICE COMMAND
+            # ============================
 
-            # ==================================
+            if user_input.lower() in ["voice", "listen"]:
+                voice_command = listen()
+
+                if voice_command:
+                    user_input = voice_command
+                else:
+                    continue
+
+            # ============================
             # EXIT
-            # ==================================
-
+            # ============================
             if user_input.lower() == "exit":
 
                 print("Goodbye 👋")
