@@ -67,6 +67,11 @@ SHELL_OPERATORS = {
 PROTECTED_APPS = {
     "Finder",
     "System Events",
+
+    # developer environments
+    "Terminal",
+    "Code",
+    "Visual Studio Code",
 }
 
 
@@ -329,66 +334,57 @@ def get_running_apps():
 # =========================================================
 
 def close_running_apps():
-
+    """
+    Gracefully ask normal GUI applications to quit, then wait until
+    they have actually disappeared from the running application list.
+    No force-killing is performed.
+    """
     print("\n🔄 Checking running applications...")
 
     running_result = get_running_apps()
 
     if not running_result["success"]:
-
         print("\n❌ Could not inspect running applications.")
-
         if running_result.get("stderr"):
             print("Error:")
             print(running_result["stderr"])
-
         if running_result.get("message"):
             print(running_result["message"])
-
         return {
             "success": False,
             "closed_apps": [],
             "failed_apps": [],
-            "message": (
-                "Unable to inspect running applications."
-            )
+            "still_running": [],
+            "message": "Unable to inspect running applications."
         }
 
     running_apps = running_result.get("apps", [])
 
     if not running_apps:
-
         print("✅ No normal GUI applications are running.")
-
         return {
             "success": True,
             "closed_apps": [],
-            "failed_apps": []
+            "failed_apps": [],
+            "still_running": []
         }
 
     print("\nRunning applications:")
-
     for app in running_apps:
-
         print(f"  • {app}")
 
-    apps_to_close = []
-
-    for app in running_apps:
-
-        if app in PROTECTED_APPS:
-            continue
-
-        apps_to_close.append(app)
+    apps_to_close = [
+        app for app in running_apps
+        if app not in PROTECTED_APPS
+    ]
 
     if not apps_to_close:
-
         print("\n✅ No applications need to be closed.")
-
         return {
             "success": True,
             "closed_apps": [],
-            "failed_apps": []
+            "failed_apps": [],
+            "still_running": []
         }
 
     print("\n🔄 Asking applications to quit...")
@@ -397,23 +393,20 @@ def close_running_apps():
     failed_apps = []
 
     for app_name in apps_to_close:
+        print(f"\n→ Quitting: {app_name}")
 
-        print(f"\n→ Closing: {app_name}")
+        # Escape the app name for an AppleScript string.
+        escaped_app_name = app_name.replace("\\", "\\\\").replace('"', '\\"')
 
         script = f'''
-        tell application {shlex.quote(app_name)}
-            quit
-        end tell
-        '''
+tell application "{escaped_app_name}"
+    quit
+end tell
+'''
 
         try:
-
             result = subprocess.run(
-                [
-                    "osascript",
-                    "-e",
-                    script
-                ],
+                ["osascript", "-e", script],
                 capture_output=True,
                 text=True,
                 timeout=15,
@@ -421,123 +414,93 @@ def close_running_apps():
             )
 
             if result.returncode == 0:
-
                 print(f"  ✅ Quit request sent: {app_name}")
-
                 closed_apps.append(app_name)
-
             else:
-
                 error = result.stderr.strip()
-
                 print(f"  ❌ Could not quit: {app_name}")
-
                 if error:
                     print(f"     Error: {error}")
-
                 failed_apps.append({
                     "app": app_name,
                     "error": error
                 })
 
         except subprocess.TimeoutExpired:
-
-            print(f"  ❌ Timeout while closing: {app_name}")
-
+            print(f"  ❌ Timeout while quitting: {app_name}")
             failed_apps.append({
                 "app": app_name,
                 "error": "Quit request timed out."
             })
 
         except Exception as e:
-
-            print(f"  ❌ Error while closing: {app_name}")
+            print(f"  ❌ Error while quitting: {app_name}")
             print(f"     {e}")
-
             failed_apps.append({
                 "app": app_name,
                 "error": str(e)
             })
 
-    # -----------------------------------------------------
-    # Give apps some time to finish quitting
-    # -----------------------------------------------------
+    # Wait up to 15 seconds and repeatedly check whether apps
+    # have actually quit.
+    print("\n⏳ Waiting for applications to actually quit...")
 
-    print("\n⏳ Waiting for applications to finish quitting...")
-
-    try:
-
-        subprocess.run(
-            [
-                "sleep",
-                "2"
-            ],
-            timeout=5,
-            shell=False
-        )
-
-    except Exception:
-        pass
-
-    # -----------------------------------------------------
-    # Check again
-    # -----------------------------------------------------
-
-    final_result = get_running_apps()
-
+    import time
+    deadline = time.monotonic() + 15
     still_running = []
 
+    while time.monotonic() < deadline:
+        check_result = get_running_apps()
+
+        if check_result["success"]:
+            current_apps = check_result.get("apps", [])
+            still_running = [
+                app for app in current_apps
+                if app not in PROTECTED_APPS
+            ]
+
+            if not still_running:
+                break
+
+        time.sleep(1)
+
+    # Final verification.
+    final_result = get_running_apps()
     if final_result["success"]:
-
         final_apps = final_result.get("apps", [])
-
-        for app in final_apps:
-
-            if app not in PROTECTED_APPS:
-                still_running.append(app)
-
-    # -----------------------------------------------------
-    # Show result
-    # -----------------------------------------------------
+        still_running = [
+            app for app in final_apps
+            if app not in PROTECTED_APPS
+        ]
 
     print("\n================================")
     print("Application Closing Result")
     print("================================")
 
     if closed_apps:
-
-        print("\nClosed / quit requested:")
-
+        print("\nQuit request sent:")
         for app in closed_apps:
-
             print(f"  ✅ {app}")
 
     if failed_apps:
-
-        print("\nFailed to quit:")
-
+        print("\nFailed to send quit request:")
         for item in failed_apps:
-
             print(f"  ❌ {item['app']}")
-
             if item.get("error"):
                 print(f"     {item['error']}")
 
     if still_running:
-
-        print("\nStill running:")
-
+        print("\nStill running after 15 seconds:")
         for app in still_running:
-
             print(f"  ⚠️ {app}")
+        print(
+            "\n⚠️ These applications were NOT force-killed. "
+            "They may have unsaved data or may have blocked quitting."
+        )
+    else:
+        print("\n✅ All normal GUI applications have quit.")
 
     print("================================")
-
-    # -----------------------------------------------------
-    # Important:
-    # Do NOT automatically force kill applications.
-    # Unsaved data could be lost.
-    # -----------------------------------------------------
 
     return {
         "success": True,
@@ -545,7 +508,6 @@ def close_running_apps():
         "failed_apps": failed_apps,
         "still_running": still_running
     }
-
 
 # =========================================================
 # SPECIAL MACOS SHUTDOWN
@@ -727,7 +689,58 @@ def shutdown_mac(timeout: int = 30):
             "success": False,
             "message": str(e)
         }
+# ==========================================
+# SPECIAL MACOS SLEEP
+# ==========================================
 
+def sleep_mac():
+    """Put macOS to sleep."""
+
+    print("\n😴 Mac Sleep Requested")
+
+    confirmed = request_confirmation(
+        "sleep",
+        "macOS"
+    )
+
+    if not confirmed:
+        return {
+            "success": False,
+            "message": "Sleep cancelled by user."
+        }
+
+    try:
+        result = subprocess.run(
+            [
+                "osascript",
+                "-e",
+                'tell application "System Events" to sleep'
+            ],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            shell=False
+        )
+
+        return {
+            "success": result.returncode == 0,
+            "return_code": result.returncode,
+            "command": "macOS sleep",
+            "stdout": result.stdout.strip(),
+            "stderr": result.stderr.strip()
+        }
+
+    except subprocess.TimeoutExpired:
+        return {
+            "success": False,
+            "message": "Sleep command timed out."
+        }
+
+    except Exception as e:
+        return {
+            "success": False,
+            "message": str(e)
+        }
 
 # =========================================================
 # SPECIAL MACOS RESTART
@@ -959,6 +972,9 @@ def execute_command(
     executable_name = Path(
         executable
     ).name.lower()
+    # SPECIAL SLEEP
+    if executable_name == "sleep":
+        return sleep_mac()
 
     # ======================================
     # SPECIAL SHUTDOWN

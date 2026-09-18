@@ -74,6 +74,9 @@ TERMINAL:
     run <command>
 
 SYSTEM:
+    sleep
+    shutdown
+    reboot / restart
     exit
                 """)
 
@@ -327,6 +330,69 @@ SYSTEM:
                 )
 
                 print(result)
+
+
+            # ==================================
+            # SHUTDOWN MAC
+            # ==================================
+
+            elif user_input.lower() == "shutdown":
+
+                result = execute_command("shutdown")
+
+                if result["success"]:
+                    print("\n🔌 Mac is shutting down.")
+                else:
+                    print("\n❌ Shutdown failed.")
+
+                    if result.get("message"):
+                        print(result["message"])
+
+                    if result.get("stderr"):
+                        print("\nError:")
+                        print(result["stderr"])
+
+
+            # ==================================
+            # RESTART MAC
+            # ==================================
+
+            elif user_input.lower() in {"reboot", "restart"}:
+
+                result = execute_command("reboot")
+
+                if result["success"]:
+                    print("\n🔄 Mac is restarting.")
+                else:
+                    print("\n❌ Restart failed.")
+
+                    if result.get("message"):
+                        print(result["message"])
+
+                    if result.get("stderr"):
+                        print("\nError:")
+                        print(result["stderr"])
+
+
+            # ==================================
+            # SLEEP MAC
+            # ==================================
+
+            elif user_input.lower() == "sleep":
+
+                result = execute_command("sleep")
+
+                if result["success"]:
+                    print("\n😴 Mac is going to sleep.")
+                else:
+                    print("\n❌ Sleep failed.")
+
+                    if result.get("message"):
+                        print(result["message"])
+
+                    if result.get("stderr"):
+                        print("\nError:")
+                        print(result["stderr"])
 
 
             # ==================================
