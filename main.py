@@ -1,4 +1,5 @@
 from tools.apps import open_app, close_app
+from voice.text_to_speech import speak
 from voice.speech_to_text import listen
 from tools.files import (
     list_files,
@@ -40,13 +41,19 @@ def main():
             # ============================
 
             if user_input.lower() in ["voice", "listen"]:
+                speak("I am listening.")
+
                 voice_command = listen()
 
                 if voice_command:
                     user_input = voice_command
+                    speak("Command received.")
                 else:
+                    speak("Sorry, I could not understand.")
                     continue
-
+            if user_input.lower() == "test voice":
+                speak("Hello, I am Cortex")
+                continue
             # ============================
             # EXIT
             # ============================
@@ -99,8 +106,7 @@ SYSTEM:
                 app_name = user_input[5:].strip()
 
                 result = open_app(app_name)
-
-                print(result)
+                speak(f"{app_name} opened.")
 
 
             # ==================================
@@ -113,7 +119,7 @@ SYSTEM:
 
                 result = close_app(app_name)
 
-                print(result)
+                speak(f"{app_name} closed.")
 
 
             # ==================================
@@ -157,6 +163,7 @@ SYSTEM:
                 result = create_folder(folder)
 
                 print(result)
+                speak(f"Folder {folder} created.")
 
 
             # ==================================
@@ -166,6 +173,7 @@ SYSTEM:
             elif user_input.lower().startswith("copy "):
 
                 command = user_input[5:]
+                command = command.replace("to", "->")
 
                 if "->" not in command:
 
@@ -188,6 +196,7 @@ SYSTEM:
                 )
 
                 print(result)
+                speak("File copied successfully.")
 
 
             # ==================================
@@ -197,6 +206,7 @@ SYSTEM:
             elif user_input.lower().startswith("move "):
 
                 command = user_input[5:]
+                command = command.replace("to", "->")
 
                 if "->" not in command:
 
@@ -219,7 +229,7 @@ SYSTEM:
                 )
 
                 print(result)
-
+                speak("File moved successfully.")
 
             # ==================================
             # SEARCH
@@ -228,6 +238,7 @@ SYSTEM:
             elif user_input.lower().startswith("search "):
 
                 command = user_input[7:]
+                command = command.replace("in", "->")
 
                 if "->" not in command:
 
@@ -285,6 +296,7 @@ SYSTEM:
                 result = get_file_info(file_path)
 
                 print(result)
+                speak("File information retrieved.")
 
 
             # ==================================
@@ -297,6 +309,7 @@ SYSTEM:
 
                 result = read_text_file(file_path)
 
+
                 if not result["success"]:
 
                     print("❌", result["message"])
@@ -308,6 +321,7 @@ SYSTEM:
                 print(result["content"])
 
                 print("--------------------------------")
+                speak("File content retrieved successfullys.")
 
 
             # ==================================
@@ -317,9 +331,11 @@ SYSTEM:
             elif user_input.lower().startswith("rename "):
 
                 command = user_input[7:]
+                command = command.replace("to", "->")
+                command = command.replace("2", "->")
+            
 
                 if "->" not in command:
-
                     print(
                         "❌ Use: rename <old_path> -> <new_name>"
                     )
@@ -339,6 +355,7 @@ SYSTEM:
                 )
 
                 print(result)
+                speak(f"File renamed to {new_name}")
 
 
             # ==================================
@@ -393,6 +410,7 @@ SYSTEM:
 
                 if result["success"]:
                     print("\n😴 Mac is going to sleep.")
+                    speak("Mac is going to sleep.")
                 else:
                     print("\n❌ Sleep failed.")
 
