@@ -1,3 +1,5 @@
+import os
+
 from tools.apps import open_app, close_app
 from voice.text_to_speech import speak
 from voice.speech_to_text import listen
@@ -130,6 +132,9 @@ SYSTEM:
 
                 folder = user_input[5:].strip()
 
+                if folder.lower() == "desktop":
+                    folder = os.path.expanduser("~/Desktop")
+
                 result = list_files(folder)
 
                 if not result["success"]:
@@ -150,6 +155,8 @@ SYSTEM:
                     print(
                         f"{icon} {item['name']}"
                     )
+
+                speak(f"{len(result['items'])} items found.")
 
 
             # ==================================
@@ -255,6 +262,9 @@ SYSTEM:
                 keyword = keyword.strip()
                 folder = folder.strip()
 
+                if folder.lower() == "desktop":
+                    folder = os.path.expanduser("~/Desktop")
+
                 result = search_files(
                     folder,
                     keyword
@@ -283,6 +293,8 @@ SYSTEM:
                     print(
                         f"{icon} {item['path']}"
                     )
+
+                speak(f"{len(result['results'])} matching files found.")
 
 
             # ==================================
@@ -368,6 +380,7 @@ SYSTEM:
 
                 if result["success"]:
                     print("\n🔌 Mac is shutting down.")
+                    speak("Mac is shutting down.")
                 else:
                     print("\n❌ Shutdown failed.")
 
@@ -389,6 +402,7 @@ SYSTEM:
 
                 if result["success"]:
                     print("\n🔄 Mac is restarting.")
+                    speak("Mac is restarting.")
                 else:
                     print("\n❌ Restart failed.")
 
@@ -452,6 +466,7 @@ SYSTEM:
                         print("--------------------------------")
                         print(result["stdout"])
                         print("--------------------------------")
+                    speak("Command executed successfully.")
 
                 else:
 
