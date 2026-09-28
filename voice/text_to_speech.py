@@ -5,7 +5,7 @@ def speak(text):
     if not text:
         return
 
-    print(f"🤖 Cortex: {text}")
+    print(f"🤖 jarvis: {text}")
 
     subprocess.run(
         ["say", text],

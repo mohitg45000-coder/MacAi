@@ -1,4 +1,10 @@
 import os
+import time
+import threading
+
+import numpy as np
+import sounddevice as sd
+from openwakeword.model import Model
 
 from tools.apps import open_app, close_app
 from voice.text_to_speech import speak
@@ -14,7 +20,7 @@ from tools.files import (
     rename_file
 )
 
-from tools.terminal import execute_command
+from tools.terminal import execute_command, close_running_apps
 
 
 # ==========================================
@@ -24,47 +30,120 @@ from tools.terminal import execute_command
 def main():
 
     print("\n================================")
-    print("        🤖 MacAI Assistant")
+    print("        🤖 Jarvis")
     print("================================")
     print("Type 'help' to see available commands.")
     print("Type 'exit' to quit.\n")
 
 
+    # Local wake-word mode.
+    # Jarvis stays idle and listens only for "Hey Jarvis".
+    wake_model = Model(wakeword_models=["hey_jarvis"])
+    wake_event = threading.Event()
+    wake_score = {"value": 0.0}
+
+    def wake_callback(indata, frames, time_info, status):
+        if status:
+            print(status)
+
+        audio = (indata[:, 0] * 32767).astype(np.int16)
+        prediction = wake_model.predict(audio)
+        score = prediction.get("hey_jarvis", 0.0)
+
+        if score > 0.5:
+            wake_score["value"] = score
+            wake_event.set()
+
+    voice_mode = True
+    active_voice = False
+
+    print("🎤 Wake-word mode is active.")
+    print("Say: Hey Jarvis")
+    print("Press Ctrl+C to stop.\\n")
+
     while True:
 
         try:
-            user_input = input("MacAI > ").strip()
+            # ============================
+            # INPUT MODE
+            # ============================
+
+            if voice_mode:
+
+                # First activation: wait for "Hey Jarvis".
+                if not active_voice:
+                    print("🟢 Waiting for 'Hey Jarvis'...")
+
+                    wake_event.clear()
+                    wake_score["value"] = 0.0
+
+                    with sd.InputStream(
+                        samplerate=16000,
+                        channels=1,
+                        dtype="float32",
+                        blocksize=1280,
+                        callback=wake_callback
+                    ):
+                        while not wake_event.is_set():
+                            time.sleep(0.05)
+
+                    score = wake_score["value"]
+                    print(f"\\n🔥 Wake word detected! Score: {score:.2f}")
+
+                    wake_model.reset()
+                    active_voice = True
+                    speak("Yes, I am listening.")
+
+                # After activation, listen directly for commands.
+                voice_command = listen()
+
+                if not voice_command:
+                    speak("Sorry, I could not understand.")
+                    continue
+
+                user_input = voice_command.strip()
+
+            else:
+                user_input = input("Jarvis > ").strip()
 
             if not user_input:
                 continue
 
             # ============================
-            # VOICE COMMAND
+            # VOICE MODE CONTROLS
             # ============================
 
-            if user_input.lower() in ["voice", "listen"]:
-                speak("I am listening.")
+            command_lower = user_input.lower().strip()
 
-                voice_command = listen()
-
-                if voice_command:
-                    user_input = voice_command
-                    speak("Command received.")
-                else:
-                    speak("Sorry, I could not understand.")
-                    continue
-            if user_input.lower() == "test voice":
-                speak("Hello, I am Cortex")
+            if command_lower in [
+                "jarvis stop listening",
+                "stop listening",
+                "jarvis stop",
+                "stop"
+            ]:
+                voice_mode = False
+                active_voice = False
+                speak("Voice mode stopped. You can type commands.")
                 continue
-            # ============================
-            # EXIT
-            # ============================
-            if user_input.lower() == "exit":
 
+            if command_lower in [
+                "jarvis exit",
+                "exit",
+                "quit"
+            ]:
                 print("Goodbye 👋")
+                speak("Goodbye.")
                 break
 
+            if command_lower in ["voice", "listen"]:
+                voice_mode = True
+                active_voice = False
+                speak("Voice mode activated.")
+                continue
 
+            if command_lower == "test voice":
+                speak("Hello, I am Jarvis")
+                continue
             # ==================================
             # HELP
             # ==================================
@@ -119,9 +198,20 @@ SYSTEM:
 
                 app_name = user_input[6:].strip()
 
-                result = close_app(app_name)
+                if app_name.lower() in ["all apps", "all"]:
+                    result = close_running_apps()
 
-                speak(f"{app_name} closed.")
+                    if result.get("still_running"):
+                        speak("Some applications could not be closed.")
+                    else:
+                        speak("All apps closed.")
+                else:
+                    result = close_app(app_name)
+
+                    if result.get("success", True):
+                        speak(f"{app_name} closed.")
+                    else:
+                        speak(f"I could not close {app_name}.")
 
 
             # ==================================
