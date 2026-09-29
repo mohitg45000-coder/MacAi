@@ -98,7 +98,6 @@ def main():
                 voice_command = listen()
 
                 if not voice_command:
-                    speak("Sorry, I could not understand.")
                     continue
 
                 user_input = voice_command.strip()
@@ -121,9 +120,9 @@ def main():
                 "jarvis stop",
                 "stop"
             ]:
-                voice_mode = False
+                voice_mode = True
                 active_voice = False
-                speak("Voice mode stopped. You can type commands.")
+                speak("Voice listening stopped. Say Hey Jarvis to activate me again.")
                 continue
 
             if command_lower in [

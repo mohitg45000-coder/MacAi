@@ -1,0 +1,7 @@
+
+# Jarvis build/runtime files
+build/
+dist/
+Jarvis.app/
+*.log
+*.spec
