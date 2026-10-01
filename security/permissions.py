@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 
 
@@ -99,8 +100,19 @@ def request_confirmation(
     path: str
 ) -> bool:
 
-    print("\n⚠️ Permission Required")
+    # Background Jarvis has no interactive stdin.
+    # Only shutdown/restart are allowed automatically.
+    if not sys.stdin.isatty() and operation in {
+        "shutdown",
+        "restart",
+        "reboot",
+        "continue_shutdown",
+        "continue_restart"
+    }:
+        print(f"✅ Background permission granted: {operation}")
+        return True
 
+    print("\n⚠️ Permission Required")
     print(f"Operation : {operation}")
     print(f"Path      : {path}")
 
@@ -114,7 +126,6 @@ def request_confirmation(
     }
 
 
-# ==========================================
 # SECURE OPERATION CHECK
 # ==========================================
 

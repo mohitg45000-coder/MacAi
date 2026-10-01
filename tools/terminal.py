@@ -747,119 +747,13 @@ def sleep_mac():
 # =========================================================
 
 def restart_mac(timeout: int = 30):
-
+    """Restart macOS directly."""
     print("\n⚠️ Mac Restart Requested")
-    print("================================")
-    print("The following actions will be performed:")
-    print()
-    print("1. Disable normal session restoration")
-    print("2. Ask running applications to quit")
-    print("3. Restart macOS")
-    print("================================")
-
-    confirmed = request_confirmation(
-        "reboot",
-        "macOS"
-    )
-
-    if not confirmed:
-
-        return {
-            "success": False,
-            "message": "Restart cancelled by user."
-        }
-
-    # =====================================================
-    # STEP 1
-    # =====================================================
-
-    print("\n🔧 Disabling session restoration...")
-
-    restore_result = disable_session_restore()
-
-    if restore_result["success"]:
-
-        print("✅ Session restoration setting updated.")
-
-    else:
-
-        print("⚠️ Could not update session restoration setting.")
-
-        if restore_result.get("stderr"):
-            print(restore_result["stderr"])
-
-    # =====================================================
-    # STEP 2
-    # =====================================================
-
-    close_result = close_running_apps()
-
-    if not close_result["success"]:
-
-        print("\n⚠️ Could not inspect applications.")
-
-        continue_restart = request_confirmation(
-            "continue_restart",
-            "macOS despite application closing error"
-        )
-
-        if not continue_restart:
-
-            return {
-                "success": False,
-                "message": "Restart cancelled by user.",
-                "details": close_result
-            }
-
-    # =====================================================
-    # STILL RUNNING
-    # =====================================================
-
-    still_running = close_result.get(
-        "still_running",
-        []
-    )
-
-    if still_running:
-
-        print("\n⚠️ Some applications are still running:")
-
-        for app in still_running:
-
-            print(f"  • {app}")
-
-        continue_restart = request_confirmation(
-            "continue_restart",
-            "macOS with applications still running"
-        )
-
-        if not continue_restart:
-
-            return {
-                "success": False,
-                "message": (
-                    "Restart cancelled because "
-                    "some applications are still running."
-                ),
-                "still_running": still_running
-            }
-
-    # =====================================================
-    # STEP 3
-    # ACTUAL RESTART
-    # =====================================================
-
-    print("\n🔄 Starting macOS restart...")
+    print("🔄 Starting macOS restart...")
 
     try:
-
         result = subprocess.run(
-            [
-                "sudo",
-                "shutdown",
-                "-r",
-                "now"
-            ],
+            ["sudo", "-n", "/sbin/shutdown", "-r", "now"],
             capture_output=True,
             text=True,
             timeout=timeout,
@@ -868,47 +762,23 @@ def restart_mac(timeout: int = 30):
 
         return {
             "success": result.returncode == 0,
-            "return_code": result.returncode,
-            "command": "sudo shutdown -r now",
-            "stdout": result.stdout.strip(),
-            "stderr": result.stderr.strip(),
-            "closed_apps": close_result.get(
-                "closed_apps",
-                []
-            ),
-            "failed_apps": close_result.get(
-                "failed_apps",
-                []
-            )
+            "message": "Restart command executed."
+            if result.returncode == 0
+            else (result.stderr.strip() or "Restart command failed.")
         }
 
     except subprocess.TimeoutExpired:
-
         return {
             "success": False,
             "message": "Restart command timed out."
         }
 
-    except FileNotFoundError:
-
-        return {
-            "success": False,
-            "message": (
-                "sudo or shutdown command "
-                "was not found."
-            )
-        }
     except Exception as e:
-
         return {
             "success": False,
             "message": str(e)
         }
 
-
-# ==========================================
-# EXECUTE TERMINAL COMMAND
-# ==========================================
 
 def execute_command(
     command: str,
