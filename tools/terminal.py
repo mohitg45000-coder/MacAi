@@ -72,6 +72,10 @@ PROTECTED_APPS = {
     "Terminal",
     "Code",
     "Visual Studio Code",
+
+    "Google Chrome",
+    "Safari",
+    "Activity Monitor",
 }
 
 
