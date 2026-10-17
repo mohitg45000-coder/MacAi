@@ -5,3 +5,12 @@ dist/
 Jarvis.app/
 *.log
 *.spec
+
+# macOS and Python cache
+.DS_Store
+__pycache__/
+*.py[cod]
+
+# Local backup files
+*.bak
+*.backup
